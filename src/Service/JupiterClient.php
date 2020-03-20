@@ -3,7 +3,9 @@
 namespace Connected\JupiterBundle\Service;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 class JupiterClient
@@ -105,6 +107,64 @@ class JupiterClient
     public function getUser(string $username): ?array
     {
         return $this->queryWithToken("users/$username");
+    }
+
+    /**
+     * Créer un nouvel utilisateur Jupiter
+     *
+     * @param string $username
+     * @param        $profileId
+     *
+     * @return bool|mixed
+     * @throws \GuzzleHttp\Exception\GuzzleException
+     */
+    public function createUser(string $username, string $profileId)
+    {
+        try {
+            $response = $this->queryWithToken('users', 'POST', [
+                'json' => [
+                    'username'  => $username,
+                    'profileId' => $profileId
+                ]
+            ]);
+
+            if (is_null($response)) {
+                return false;
+            }
+
+            return json_decode(json_encode($response), true);
+        } catch (RequestException $e) {
+            throw new NotFoundHttpException("Impossible de créer l'utilisateur dans JUPITER");
+        }
+    }
+
+    /**
+     * Récupère tous les profils utilisateur
+     *
+     * @return array|null
+     */
+    public function getProfilsUtilisateur(): ?array
+    {
+        return $this->queryWithToken('profiles');
+    }
+
+    /**
+     * Récupère un profil jupiter à partir de son slug
+     *
+     * @param string $profileSlug
+     * @return mixed
+     */
+    public function getProfileBySlug(string $profileSlug)
+    {
+        $profiles = $this->getProfilsUtilisateur();
+
+        foreach ($profiles as $profile) {
+            if ($profile['displayName'] === $profileSlug) {
+                return $profile;
+            }
+        }
+
+        throw new NotFoundHttpException("Le profil '$profileSlug' n'existe pas sur Jupiter");
     }
 
     /**
