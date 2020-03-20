@@ -1,0 +1,15 @@
+{
+    "name": "connected-company/symfony-jupiter-bundle",
+    "description": "Client Jupiter pour dialoguer avec la GED",
+    "type": "symfony-bundle",
+    "autoload": {
+        "psr-4": {
+            "Connected\\JupiterBundle\\": "src/"
+        }
+    },
+    "require": {
+        "php": ">=7.1",
+        "guzzlehttp/guzzle": ">=6.0",
+        "symfony/security-bundle": ">=4.0"
+    }
+}
