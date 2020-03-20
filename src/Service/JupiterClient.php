@@ -113,18 +113,18 @@ class JupiterClient
      * Créer un nouvel utilisateur Jupiter
      *
      * @param string $username
-     * @param        $profileId
+     * @param        $profilId
      *
      * @return bool|mixed
      * @throws \GuzzleHttp\Exception\GuzzleException
      */
-    public function createUser(string $username, string $profileId)
+    public function createUser(string $username, string $profilId)
     {
         try {
             $response = $this->queryWithToken('users', 'POST', [
                 'json' => [
                     'username'  => $username,
-                    'profileId' => $profileId
+                    'profileId' => $profilId
                 ]
             ]);
 
@@ -136,6 +136,23 @@ class JupiterClient
         } catch (RequestException $e) {
             throw new NotFoundHttpException("Impossible de créer l'utilisateur dans JUPITER");
         }
+    }
+
+    /**
+     * Récupère un profil depuis son ID
+     *
+     * @param string $profilId
+     * @return array|null
+     */
+    public function getprofil(string $profilId): ?array
+    {
+        $response = $this->queryWithToken("profiles/$profilId");
+
+        if ($response === null) {
+            throw new NotFoundHttpException("Le profil n'existe pas sur Jupiter");
+        }
+
+        return $response;
     }
 
     /**
@@ -151,20 +168,124 @@ class JupiterClient
     /**
      * Récupère un profil jupiter à partir de son slug
      *
-     * @param string $profileSlug
+     * @param string $profilSlug
      * @return mixed
      */
-    public function getProfileBySlug(string $profileSlug)
+    public function getProfilBySlug(string $profilSlug)
     {
-        $profiles = $this->getProfilsUtilisateur();
+        $profils = $this->getProfilsUtilisateur();
 
-        foreach ($profiles as $profile) {
-            if ($profile['displayName'] === $profileSlug) {
-                return $profile;
+        foreach ($profils as $profil) {
+            if ($profil['displayName'] === $profilSlug) {
+                return $profil;
             }
         }
 
-        throw new NotFoundHttpException("Le profil '$profileSlug' n'existe pas sur Jupiter");
+        throw new NotFoundHttpException("Le profil '$profilSlug' n'existe pas sur Jupiter");
+    }
+
+    /**
+     * Permet d'ajouter un utilisateur à un profil Jupiter
+     *
+     * @param string $profilId
+     * @param string $username
+     * @param string|null $prenom
+     * @param string|null $nom
+     * @param string|null $email
+     * @return mixed|null
+     * @throws \GuzzleHttp\Exception\GuzzleException
+     */
+    public function addUserToProfil(string $profilId, string $username, string $prenom = null, string $nom = null, string $email = null)
+    {
+        $user = $this->getUser($username);
+
+        if ($user === null) {
+            throw new NotFoundHttpException("L'utilisateur '$username' n'existe pas sur Jupiter");
+        }
+
+        $profil = $this->getProfil($profilId);
+
+        $newUser = (object) [
+            'userName' => $username,
+            'fullName' => $prenom . ' '. $nom
+        ];
+
+        if ($prenom !== null) {
+            $newUser->firstname = $prenom;
+        }
+
+        if ($nom !== null) {
+            $newUser->lastname = $nom;
+        }
+
+        if ($email !== null) {
+            $newUser->email = $email;
+        }
+
+        /** @noinspection PhpUndefinedFieldInspection */
+        $profil->users[] = $newUser;
+
+        return $this->updateProfil($profilId, $profil->users);
+    }
+
+    /**
+     * Met à jour un profil Jupiter
+     *
+     * @noinspection PhpDocSignatureInspection
+     *
+     * @param string                       $profilId
+     * @param array|null                   $users
+     * @param string|null                  $displayName
+     * @param object|null                  $jupiterRight
+     *
+     * @return mixed|null
+     * @throws \GuzzleHttp\Exception\GuzzleException
+     */
+    public function updateProfil(string $profilId, array $users = null, string $displayName = null, object $jupiterRight = null)
+    {
+        $parameters = (array) $this->getProfil($profilId);
+
+        if ($users !== null) {
+            $parameters['users'] = $users;
+        }
+        if ($displayName !== null) {
+            $parameters['displayName'] = $displayName;
+        }
+        if ($jupiterRight !== null) {
+            $parameters['jupiterRight'] = $jupiterRight;
+        }
+
+        return $this->queryWithToken("profiles/$profilId", 'PUT', [
+            'json' => $parameters
+        ]);
+    }
+
+    /**
+     * Supprime un utilisateur d'un profil Jupiter
+     *
+     * @param string $userLogin
+     * @param string $profilId
+     *
+     * @return mixed|null
+     * @throws \GuzzleHttp\Exception\GuzzleException
+     */
+    public function removeUserFromProfil(string $userLogin, string $profilId)
+    {
+        try {
+            // Vérifier si l'utilisateur existe dans GED
+            $this->getUser($userLogin);
+
+            $profil = $this->getProfil($profilId);
+            /** @noinspection PhpUndefinedFieldInspection */
+            $profil->users = array_filter($profil->users, function ($user) use ($userLogin) {
+                return $user->userName !== $userLogin;
+            });
+
+            return $this->updateProfil($profilId, $profil->users);
+        } catch (RequestException $e) {
+            // Si l'utilisateur n'existe pas, on ne fait pas planter
+            return true;
+        }
     }
 
     /**
