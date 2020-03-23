@@ -205,27 +205,17 @@ class JupiterClient
 
         $profil = $this->getProfil($profilId);
 
-        $newUser = (object) [
+        $newUser = [
             'userName' => $username,
-            'fullName' => $prenom . ' '. $nom
+            'fullName' => trim(($prenom ?? '') . ' ' . ($nom ?? '')),
+            'firstname' => $prenom ?? '',
+            'lastname' => $nom ?? '',
+            'email' => $email ?? '',
         ];
 
-        if ($prenom !== null) {
-            $newUser->firstname = $prenom;
-        }
+        $profil['users'][] = $newUser;
 
-        if ($nom !== null) {
-            $newUser->lastname = $nom;
-        }
-
-        if ($email !== null) {
-            $newUser->email = $email;
-        }
-
-        /** @noinspection PhpUndefinedFieldInspection */
-        $profil->users[] = $newUser;
-
-        return $this->updateProfil($profilId, $profil->users);
+        return $this->updateProfil($profilId, $profil['users']);
     }
 
     /**
