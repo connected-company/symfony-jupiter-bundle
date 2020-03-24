@@ -202,7 +202,8 @@ class JupiterClient
         if ($user === null) {
             throw new NotFoundHttpException("L'utilisateur '$username' n'existe pas sur Jupiter");
         }
-
+        // on supprime l'utilisateur au cas ou afin d'eviter les doublons
+        $this->removeUserFromProfil($username, $profilId);
         $profil = $this->getProfil($profilId);
 
         $newUser = [
