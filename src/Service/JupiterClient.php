@@ -253,29 +253,21 @@ class JupiterClient
     /**
      * Supprime un utilisateur d'un profil Jupiter
      *
-     * @param string $userLogin
+     * @param string $username
      * @param string $profilId
-     *
      * @return mixed|null
      * @throws \GuzzleHttp\Exception\GuzzleException
      */
-    public function removeUserFromProfil(string $userLogin, string $profilId)
+    public function removeUserFromProfil(string $username, string $profilId)
     {
-        try {
-            // Vérifier si l'utilisateur existe dans GED
-            $this->getUser($userLogin);
 
-            $profil = $this->getProfil($profilId);
-            /** @noinspection PhpUndefinedFieldInspection */
-            $profil->users = array_filter($profil->users, function ($user) use ($userLogin) {
-                return $user->userName !== $userLogin;
-            });
+        $profil = $this->getProfil($profilId);
+        /** @noinspection PhpUndefinedFieldInspection */
+        $profil['users'] = array_filter($profil['users'], function ($user) use ($username) {
+            return $user['userName'] !== $username;
+        });
 
-            return $this->updateProfil($profilId, $profil->users);
-        } catch (RequestException $e) {
-            // Si l'utilisateur n'existe pas, on ne fait pas planter
-            return true;
-        }
+        return $this->updateProfil($profilId, $profil['users']);
     }
 
     /**
