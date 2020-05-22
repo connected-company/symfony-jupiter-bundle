@@ -2,6 +2,7 @@
 
 namespace Connected\JupiterBundle\Service;
 
+use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
 use Psr\Log\LoggerInterface;

@@ -2,6 +2,15 @@
 Client jupiter pour communiquer avec la GED
 
 ## installation
+Modifiez votre fichier composer pour ajouter le repository
+```bash
+    "repositories": [
+        {"type": "vcs", "url": "https://github.com/connected-company/symfony-jupiter-bundle"},
+        {"type": "vcs", "url": "https://github.com/connected-company/symfony-etromby-bundle"}
+    ],
+```
+
+Exécutez ensuite
 ```bash
 $ composer require connected-company/symfony-jupiter-bundle
 ```
