@@ -9,7 +9,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
-class JupiterClient
+class JupiterClient implements JupiterClientInterface
 {
     /**
      * @var string|null
