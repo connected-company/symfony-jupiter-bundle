@@ -138,6 +138,14 @@ interface JupiterClientInterface
     public function postDocument(string $fileOrFilePath, string $univers, array $metadatas, string $typeDocument, string $mimetype = 'application/pdf', string $extension = 'pdf', bool $deleteFileAfter = true, ?string $customFilename = null): ?array;
 
     /**
+     * Permet de récupérer l'url pour télécharger le document
+     *
+     * @param string $documentId
+     * @return string
+     */
+    public function getDocumentUrl(string $documentId): string;
+
+    /**
      * Permet de télécharger un document décrypté
      *
      * @param string $documentId
