@@ -19,6 +19,11 @@ class JupiterClient implements JupiterClientInterface
     /**
      * @var string
      */
+    protected $apiUrl;
+
+    /**
+     * @var string
+     */
     protected $xApiKey;
 
     /**
@@ -42,10 +47,11 @@ class JupiterClient implements JupiterClientInterface
         LoggerInterface $logger
     ) {
         $this->xApiKey = $xApiKey;
+        $this->apiUrl = $apiUrl;
         $this->userLdap = $tokenStorage->getToken() !== null ? strtolower($tokenStorage->getToken()->getUsername()) : 'testinfo';
         $this->logger = $logger;
         $this->guzzleClient = new Client([
-            'base_uri' => $apiUrl
+            'base_uri' => $this->apiUrl
         ]);
     }
 
@@ -515,6 +521,15 @@ class JupiterClient implements JupiterClientInterface
             ]);
 
         return null;
+    }
+
+    /**
+     * @param string $documentId
+     * @return string
+     */
+    public function getDocumentUrl(string $documentId): string
+    {
+        return $this->apiUrl . "version/downloadVersion?documentId=$documentId&token=" . $this->getConnection();
     }
 
     /**
