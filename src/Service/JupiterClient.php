@@ -11,6 +11,10 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
 
 class JupiterClient implements JupiterClientInterface
 {
+
+    public const DOCUMENT_STATUT_DRAFT = 'draft';
+    public const DOCUMENT_STATUT_ACTIVE = 'active';
+    public const DOCUMENT_STATUT_INACTIVE = 'inactive';
     /**
      * @var string|null
      */
@@ -368,55 +372,14 @@ class JupiterClient implements JupiterClientInterface
         bool $deleteFileAfter = true,
         ?string $customFilename = null
     ): ?array {
-        $wantedDoctype = false;
-
-        $doctypesByWorkspace = $this->getDoctypesByWorkspace($univers);
-
-        foreach ($doctypesByWorkspace['data'] as $doctype) {
-            if ($doctype['displayName'] === $typeDocument) {
-                $wantedDoctype = $doctype;
-            }
-        }
-
-        if (!$wantedDoctype) {
-            $this->logger->error("Impossible de trouver le doctype $typeDocument", []);
-
-            throw new Exception(sprintf('Impossible de trouver le doctype %s', $typeDocument));
-        }
-
-        $completedMetadatas = [];
-        $metadataByDoctype = $this->getMetadaByDoctype($wantedDoctype['id']);
-
-        foreach ($metadataByDoctype as $data) {
-            if (in_array($data['systemName'], array_keys($metadatas))) {
-                $metaInfos = $metadatas[$data['systemName']];
-                $value = $metaInfos["value"];
-                $label = $metaInfos["label"];
-                $completedMetadatas[] = [
-                    'id' => $data["id"],
-                    'type' => $data["type"],
-                    'systemName' => $data["systemName"],
-                    'value' => $value,
-                    'label' => $label,
-                    'linked' => false
-                ];
-            }
-        }
-
-        if (count($completedMetadatas) === 0) {
-            $this->logger->error(
-                'Impossible de trouver les métadonnées demandées',
-                ['metadatas' => $metadatas]);
-
-            throw new Exception('Impossible de trouver les métadonnées demandées');
-        }
-
-        $tempFilePath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . uniqid('', false) . '.' . $extension;
-
-        $fileContent = @file_exists( $fileOrFilePath ) ? file_get_contents( $fileOrFilePath ) : $fileOrFilePath;
-
-        $fileResource = fopen($tempFilePath, 'w+');
-        fwrite($fileResource, $fileContent);
+        $data = [
+            'doctype' => $typeDocument,
+            'workspace' => $univers,
+            'status' => self::DOCUMENT_STATUT_ACTIVE,
+            'mimeType' => $mimetype,
+            'extension' => $extension,
+            'metadata' => $metadatas,
+        ];
 
         if (!is_null($customFilename)) {
             $filename = $customFilename;
@@ -427,80 +390,33 @@ class JupiterClient implements JupiterClientInterface
             throw new Exception("Aucun nom de fichier n'a été fourni");
         }
 
+        $tempFilePath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . uniqid('', false) . '.' . $extension;
+        $fileContent = @file_exists( $fileOrFilePath ) ? file_get_contents( $fileOrFilePath ) : $fileOrFilePath;
+        $fileResource = fopen($tempFilePath, 'w+');
+        fwrite($fileResource, $fileContent);
+
         $params = [
             'multipart' => [
                 [
                     'name' => 'uploadFile',
                     'contents' => $fileResource,
-                    'filename' => $filename
+                    'filename' => pathinfo($filename, PATHINFO_FILENAME),
+                ],
+                [
+                    'name' => 'data',
+                    'contents' => json_encode($data, true),
                 ]
             ]
         ];
 
-        $response = $this->queryWithToken('file/upload', 'POST', $params);
+        $response = $this->queryWithToken('document/quick-insert', 'POST', $params);
 
         if ($response !== null) {
-            $files = $response['files'];
-
-            $postData = [
-                'title' => substr($files['name'], 0, strrpos($files['name'], '.')),
-                'mimeType' => $mimetype,
-                'ext' => $extension,
-                'docTypeId' => $wantedDoctype['id'],
-                'url' => $files['url'],
-                'status' => 'active',
-                'metadata' => $completedMetadatas
-            ];
-
-            $response = $this->queryWithToken('documents',
-                'POST',
-                [
-                    'body' => json_encode($postData),
-                    'headers' => [
-                        'Content-Type' => 'application/json'
-                    ]
-                ]
-            );
-
             unlink($tempFilePath);
 
             if ($deleteFileAfter === true && @file_exists($fileOrFilePath)) {
                 unlink($fileOrFilePath);
             }
-
-            if (is_null($response)) {
-                if (!@file_exists($fileOrFilePath)) {
-                    $fileOrFilePath = '[CONTENU DU FICHIER]';
-                }
-
-                $this->logger->error(
-                    'Une erreur est survenue lors de la création du document',
-                    [
-                        'cheminOuFichier' => $fileOrFilePath,
-                        'univers' => $univers,
-                        'metadatas' => $metadatas,
-                        'doctype' => $typeDocument,
-                        'mimetype' => $mimetype,
-                        'extension' => $extension
-                    ]);
-
-                return null;
-            }
-
-            if (!@file_exists($fileOrFilePath)) {
-                $fileOrFilePath = '[CONTENU DU FICHIER]';
-            }
-
-            $this->logger->info(
-                'Le document a bien été envoyé.',
-                [
-                    'cheminOuFichier' => $fileOrFilePath,
-                    'univers' => $univers,
-                    'metadatas' => $metadatas,
-                    'doctype' => $typeDocument,
-                    'mimetype' => $mimetype,
-                    'extension' => $extension
-                ]);
 
             return json_decode(json_encode($response), true);
         }
