@@ -52,7 +52,7 @@ class JupiterClient implements JupiterClientInterface
     ) {
         $this->xApiKey = $xApiKey;
         $this->apiUrl = $apiUrl;
-        $this->userLdap = $tokenStorage->getToken() !== null ? strtolower($tokenStorage->getToken()->getUsername()) : 'testinfo';
+        $this->userLdap = $tokenStorage->getToken() !== null ? strtolower($tokenStorage->getToken()->getUserIdentifier()) : 'testinfo';
         $this->logger = $logger;
         $this->guzzleClient = new Client([
             'base_uri' => $this->apiUrl
