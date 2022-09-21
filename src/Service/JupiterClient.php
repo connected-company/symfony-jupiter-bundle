@@ -390,11 +390,13 @@ class JupiterClient implements JupiterClientInterface
             throw new Exception("Aucun nom de fichier n'a été fourni");
         }
 
+        $fileContent = @file_exists($fileOrFilePath) ? file_get_contents($fileOrFilePath) : $fileOrFilePath;
+
         $params = [
             'multipart' => [
                 [
                     'name' => 'uploadFile',
-                    'contents' => file_get_contents( $fileOrFilePath ),
+                    'contents' => $fileContent,
                     'filename' => pathinfo($filename, PATHINFO_FILENAME),
                 ],
                 [
