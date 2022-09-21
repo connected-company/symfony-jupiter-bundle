@@ -390,16 +390,11 @@ class JupiterClient implements JupiterClientInterface
             throw new Exception("Aucun nom de fichier n'a été fourni");
         }
 
-        $tempFilePath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . uniqid('', false) . '.' . $extension;
-        $fileContent = @file_exists( $fileOrFilePath ) ? file_get_contents( $fileOrFilePath ) : $fileOrFilePath;
-        $fileResource = fopen($tempFilePath, 'w+');
-        fwrite($fileResource, $fileContent);
-
         $params = [
             'multipart' => [
                 [
                     'name' => 'uploadFile',
-                    'contents' => $fileResource,
+                    'contents' => file_get_contents( $fileOrFilePath ),
                     'filename' => pathinfo($filename, PATHINFO_FILENAME),
                 ],
                 [
@@ -412,8 +407,6 @@ class JupiterClient implements JupiterClientInterface
         $response = $this->queryWithToken('document/quick-insert', 'POST', $params);
 
         if ($response !== null) {
-            unlink($tempFilePath);
-
             if ($deleteFileAfter === true && @file_exists($fileOrFilePath)) {
                 unlink($fileOrFilePath);
             }
