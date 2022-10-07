@@ -322,6 +322,8 @@ class JupiterClient implements JupiterClientInterface
                     return mb_convert_encoding(pack('H*', $match[1]), 'UTF-8', 'UCS-2BE');
                 }, $response->getBody()->getContents());
 
+                $str = preg_replace('/[\x00]/', '', $str);
+
                 return json_decode($str, true);
             } else {
                 $this->logger->error(
