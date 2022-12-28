@@ -474,6 +474,39 @@ class JupiterClient implements JupiterClientInterface
     }
 
     /**
+     * Permet de télécharger un ZIP de plusieurs documents via un tableau de valeurs d'une metadonnée.
+     *
+     * @param string $metadata
+     * @param array $documentIds
+     * @return array
+     */
+    public function downloadFromMetadata(string $metadata, array $documentIds): array
+    {
+        $fichierResponse = $this->queryWithToken(
+            "version/downloadFromMetadata",
+            'POST',
+            [
+                'body' => json_encode([
+                    'systemName' => $metadata,
+                    'ids' => $documentIds
+                ]),
+                'headers' => [
+                    'Content-Type' => 'application/json'
+                ]
+            ],
+            true);
+
+        // Recupération du nom original du fichier
+        preg_match('/\s*filename\s?=\s?(.*)/', $fichierResponse->getHeader("Content-Disposition")[0], $output_array);
+        $decryptedFileName = str_replace('"', '', $output_array[1]);
+
+        return [
+            'fileName' => $decryptedFileName,
+            'fileContent' => $fichierResponse->getBody()->getContents(),
+        ];
+    }
+
+    /**
      * Permet de récupérer l'ensemble des documents présents dans un doctype
      *
      * @param string $univers
