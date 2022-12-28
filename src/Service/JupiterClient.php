@@ -482,9 +482,9 @@ class JupiterClient implements JupiterClientInterface
      */
     public function downloadFromMetadata(string $metadata, array $documentIds): array
     {
-        $fichierResponse = $this->queryWithToken(
-            "version/downloadFromMetadata",
+        $fichierResponse =  $this->guzzleClient->request(
             'POST',
+            "version/downloadFromMetadata?token=" . $this->getConnection(),
             [
                 'body' => json_encode([
                     'systemName' => $metadata,
