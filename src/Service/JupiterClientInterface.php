@@ -160,10 +160,11 @@ interface JupiterClientInterface
      * Permet de télécharger un ZIP de plusieurs documents via un tableau de valeurs d'une metadonnée.
      *
      * @param string $metadata
-     * @param array $documentIds
-     * @return array
+     * @param array $values
+     * @return array|null
+     * @throws Exception
      */
-    public function downloadFromMetadata(string $metadata, array $documentIds): array;
+    public function downloadFromMetadata(string $metadata, array $values): ?array;
 
     /**
      * Permet de récupérer l'ensemble des documents présents dans un doctype

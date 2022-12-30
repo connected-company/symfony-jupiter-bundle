@@ -477,10 +477,11 @@ class JupiterClient implements JupiterClientInterface
      * Permet de télécharger un ZIP de plusieurs documents via un tableau de valeurs d'une metadonnée.
      *
      * @param string $metadata
-     * @param array $documentIds
-     * @return array
+     * @param array $values
+     * @return array|null
+     * @throws Exception
      */
-    public function downloadFromMetadata(string $metadata, array $documentIds): array
+    public function downloadFromMetadata(string $metadata, array $values): ?array
     {
         $fichierResponse =  $this->guzzleClient->request(
             'POST',
@@ -488,7 +489,7 @@ class JupiterClient implements JupiterClientInterface
             [
                 'body' => json_encode([
                     'systemName' => $metadata,
-                    'ids' => $documentIds
+                    'ids' => $values
                 ]),
                 'headers' => [
                     'Content-Type' => 'application/json'
@@ -496,14 +497,33 @@ class JupiterClient implements JupiterClientInterface
             ],
             true);
 
-        // Recupération du nom original du fichier
-        preg_match('/\s*filename\s?=\s?(.*)/', $fichierResponse->getHeader("Content-Disposition")[0], $output_array);
-        $decryptedFileName = str_replace('"', '', $output_array[1]);
+        $statusCode = $fichierResponse->getStatusCode();
+        if ($statusCode >= 200 && $statusCode < 300) {
+            // Recupération du nom original du fichier
+            preg_match(
+                '/\s*filename\s?=\s?(.*)/', $fichierResponse->getHeader("Content-Disposition")[0], $output_array);
+            $decryptedFileName = str_replace('"', '', $output_array[1]);
 
-        return [
-            'fileName' => $decryptedFileName,
-            'fileContent' => $fichierResponse->getBody()->getContents(),
-        ];
+            return [
+                'fileName' => $decryptedFileName,
+                'fileContent' => $fichierResponse->getBody()->getContents(),
+            ];
+        }
+
+        if ($statusCode === 418) {
+            throw new Exception('Aucun documents trouvés avec les paramétres fournis.');
+        }
+
+        $this->logger->error(
+            'Erreur le code de retour est' . $statusCode,
+            [
+                'params' => [
+                    $values,
+                    $metadata
+                ]
+            ]);
+
+        return null;
     }
 
     /**
