@@ -510,10 +510,6 @@ class JupiterClient implements JupiterClientInterface
             ];
         }
 
-        if ($statusCode === 418) {
-            throw new Exception('Aucun documents trouvés avec les paramétres fournis.');
-        }
-
         $this->logger->error(
             'Erreur le code de retour est' . $statusCode,
             [
