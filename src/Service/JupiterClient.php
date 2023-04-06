@@ -588,6 +588,35 @@ class JupiterClient implements JupiterClientInterface
         return $documents;
     }
 
+    public function searchDocuments(string $univers, ?\DateTime $dateModificationFrom = null, ?\DateTime $dateModificationTo = null, $withDeleted = false): array
+    {
+        $documents = [];
+
+        $query = '';
+
+        $uri = "document/search?w=$univers"."&date_modification=20230328";
+
+        if ($dateModificationFrom instanceof \DateTime) {
+            $uri .= '&date_modification=' . $dateModificationFrom->format('Ymd');
+        }
+        if ($dateModificationTo instanceof \DateTime) {
+            $uri .= '&date_modification_fin=' . $dateModificationTo->format('Ymd');
+        }
+        if ($withDeleted) {
+            $uri .= '&withDeleted';
+        }
+
+        $uri.=$query;
+
+        $treeResponse = $this->queryWithToken($uri, 'GET');
+
+        foreach ($treeResponse['data'] as $doc) {
+            $documents[] = $doc;
+        }
+
+        return $documents;
+    }
+
 
     /**
      * @param string $documentId
