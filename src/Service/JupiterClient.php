@@ -594,7 +594,7 @@ class JupiterClient implements JupiterClientInterface
 
         $query = '';
 
-        $uri = "document/search?w=$univers"."&date_modification=20230328";
+        $uri = "document/search?w=$univers";
 
         if ($dateModificationFrom instanceof \DateTime) {
             $uri .= '&date_modification=' . $dateModificationFrom->format('Ymd');
