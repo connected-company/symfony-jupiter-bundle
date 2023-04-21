@@ -176,7 +176,7 @@ interface JupiterClientInterface
      */
     public function getDocuments(string $univers, array $metadatas = [], bool $withMedatas = false): array;
 
-    public function searchDocuments(string $univers, ?\DateTime $dateModificationFrom, ?\DateTime $dateModificationTo, $withDeleted = false): array;
+    public function searchDocuments(string $univers, ?\DateTime $dateModificationFrom = null, ?\DateTime $dateModificationTo = null, $withDeleted = false): array;
 
     /**
      * @param string $documentId
