@@ -3,11 +3,13 @@
 namespace Connected\JupiterBundle\Service;
 
 use Exception;
-use GuzzleHttp\Client;
-use GuzzleHttp\Exception\RequestException;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\Mime\Part\DataPart;
+use Symfony\Component\Mime\Part\Multipart\FormDataPart;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class JupiterClient implements JupiterClientInterface
 {
@@ -36,10 +38,6 @@ class JupiterClient implements JupiterClientInterface
     protected $userLdap;
 
     /**
-     * @var Client
-     */
-    protected $guzzleClient;
-    /**
      * @var LoggerInterface
      */
     protected $logger;
@@ -48,15 +46,17 @@ class JupiterClient implements JupiterClientInterface
         string $apiUrl,
         string $xApiKey,
         TokenStorageInterface $tokenStorage,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        private HttpClientInterface $client
     ) {
         $this->xApiKey = $xApiKey;
         $this->apiUrl = $apiUrl;
         $this->userLdap = $tokenStorage->getToken() !== null ? strtolower($tokenStorage->getToken()->getUserIdentifier()) : 'testinfo';
         $this->logger = $logger;
-        $this->guzzleClient = new Client([
-            'base_uri' => $this->apiUrl
-        ]);
+        $this->client = $this->client->withOptions([
+                'base_uri' => $apiUrl,
+            ]
+        );
     }
 
     /**
@@ -64,14 +64,18 @@ class JupiterClient implements JupiterClientInterface
      */
     public function connect(): string
     {
-        $response = $this->guzzleClient->get('users/' . $this->userLdap, [
-            'headers' => [
-                'x-apikey' => $this->xApiKey,
-                'Accept' => 'application/json'
+        $response = $this->client->request(
+            'GET',
+            'users/' . $this->userLdap,
+            [
+                'headers' => [
+                    'x-apikey' => $this->xApiKey,
+                    'Accept' => 'application/json'
+                ]
             ]
-        ]);
+        );
 
-        return json_decode($response->getBody()->getContents())->token;
+        return json_decode($response->getContent())->token;
     }
 
     protected function getConnection(): string
@@ -124,10 +128,8 @@ class JupiterClient implements JupiterClientInterface
      * Créer un nouvel utilisateur Jupiter
      *
      * @param string $username
-     * @param        $profilId
-     *
+     * @param string $profilId
      * @return bool|mixed
-     * @throws \GuzzleHttp\Exception\GuzzleException
      */
     public function createUser(string $username, string $profilId)
     {
@@ -203,8 +205,7 @@ class JupiterClient implements JupiterClientInterface
      * @param string|null $prenom
      * @param string|null $nom
      * @param string|null $email
-     * @return mixed|null
-     * @throws \GuzzleHttp\Exception\GuzzleException
+     * @return array|mixed|null
      */
     public function addUserToProfil(string $profilId, string $username, string $prenom = null, string $nom = null, string $email = null)
     {
@@ -235,13 +236,11 @@ class JupiterClient implements JupiterClientInterface
      *
      * @noinspection PhpDocSignatureInspection
      *
-     * @param string                       $profilId
-     * @param array|null                   $users
-     * @param string|null                  $displayName
-     * @param object|null                  $jupiterRight
-     *
-     * @return mixed|null
-     * @throws \GuzzleHttp\Exception\GuzzleException
+     * @param string $profilId
+     * @param array|null $users
+     * @param string|null $displayName
+     * @param object|null $jupiterRight
+     * @return array|null
      */
     public function updateProfil(string $profilId, array $users = null, string $displayName = null, object $jupiterRight = null)
     {
@@ -267,8 +266,7 @@ class JupiterClient implements JupiterClientInterface
      *
      * @param string $username
      * @param string $profilId
-     * @return mixed|null
-     * @throws \GuzzleHttp\Exception\GuzzleException
+     * @return array|null
      */
     public function removeUserFromProfil(string $username, string $profilId)
     {
@@ -310,24 +308,26 @@ class JupiterClient implements JupiterClientInterface
                 $params['headers']['x-apikey'] = $this->xApiKey;
             }
 
-            $response = $this->guzzleClient->request(
+            $response = $this->client->request(
                 $method,
                 $resourceUri . 'token=' . $this->getConnection(),
                 $params
             );
 
-            $satusCode = $response->getStatusCode();
-            if ($satusCode >= 200 && $satusCode < 300) {
+
+
+            $statusCode = $response->getStatusCode();
+            if ($statusCode >= 200 && $statusCode < 300) {
                 $str = preg_replace_callback('/\\\\u([0-9a-fA-F]{4})/', function ($match) {
                     return mb_convert_encoding(pack('H*', $match[1]), 'UTF-8', 'UCS-2BE');
-                }, $response->getBody()->getContents());
+                }, $response->getContent());
 
                 $str = preg_replace('/[\x00]/', '', $str);
 
                 return json_decode($str, true);
             } else {
                 $this->logger->error(
-                    'Erreur le code de retour est' . $satusCode,
+                    'Erreur le code de retour est' . $statusCode,
                     [
                         'uri_resource' => $resourceUri,
                         'method' => $method,
@@ -336,7 +336,7 @@ class JupiterClient implements JupiterClientInterface
 
                 return null;
             }
-        } catch (GuzzleException $e) {
+        } catch (\Exception $e) {
             $this->logger->error(
                 'Une erreur est survenue.',
                 [
@@ -394,21 +394,16 @@ class JupiterClient implements JupiterClientInterface
 
         $fileContent = @file_exists($fileOrFilePath) ? file_get_contents($fileOrFilePath) : $fileOrFilePath;
 
-        $params = [
-            'multipart' => [
-                [
-                    'name' => 'uploadFile',
-                    'contents' => $fileContent,
-                    'filename' => pathinfo($filename, PATHINFO_FILENAME),
-                ],
-                [
-                    'name' => 'data',
-                    'contents' => json_encode($data, true),
-                ]
-            ]
+        $formData = new FormDataPart([
+            'uploadFile' => new DataPart($fileContent, pathinfo($filename, PATHINFO_FILENAME)),
+            'data' => json_encode($data, JSON_THROW_ON_ERROR | true),
+        ]);
+        $options = [
+            'headers' => $formData->getPreparedHeaders()->toArray(),
+            'body' => $formData->bodyToIterable(),
         ];
 
-        $response = $this->queryWithToken('document/quick-insert', 'POST', $params);
+        $response = $this->queryWithToken('document/quick-insert', 'POST', $options);
 
         if ($response !== null) {
             if ($deleteFileAfter === true && @file_exists($fileOrFilePath)) {
@@ -449,21 +444,24 @@ class JupiterClient implements JupiterClientInterface
      * Permet de télécharger un document décrypté
      *
      * @param string $documentId
-     *
      * @return array
-     * @throws GuzzleException
+     * @throws \Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface
      */
     public function downloadDocument(string $documentId): array
     {
-        $fichierResponse = $this->guzzleClient->request('GET', "version/downloadVersion?documentId=$documentId&token=" . $this->getConnection());
+        $fichierResponse = $this->client->request(
+            'GET',
+            "version/downloadVersion?documentId=$documentId&token=" . $this->getConnection()
+        );
+        $headers = $fichierResponse->getHeaders();
 
         // Recupération du nom original du fichier
-        preg_match('/\s*filename\s?=\s?(.*)/', $fichierResponse->getHeader("Content-Disposition")[0], $output_array);
+        preg_match('/\s*filename\s?=\s?(.*)/', $headers['content-disposition'][0], $output_array);
         $decryptedFileName = str_replace('"', '', $output_array[1]);
 
         $decryptedFileContent = [
             'fileName' => $decryptedFileName,
-            'fileContent' => $fichierResponse->getBody()->getContents(),
+            'fileContent' => $fichierResponse->getContent(),
         ];
 
         $this->logger->info(
@@ -483,7 +481,7 @@ class JupiterClient implements JupiterClientInterface
      */
     public function downloadFromMetadata(string $metadata, array $values): ?array
     {
-        $fichierResponse =  $this->guzzleClient->request(
+        $fichierResponse =  $this->client->request(
             'POST',
             "version/downloadFromMetadata?token=" . $this->getConnection(),
             [
@@ -499,14 +497,15 @@ class JupiterClient implements JupiterClientInterface
 
         $statusCode = $fichierResponse->getStatusCode();
         if ($statusCode >= 200 && $statusCode < 300) {
+            $headers = $fichierResponse->getHeaders();
             // Recupération du nom original du fichier
             preg_match(
-                '/\s*filename\s?=\s?(.*)/', $fichierResponse->getHeader("Content-Disposition")[0], $output_array);
+                '/\s*filename\s?=\s?(.*)/', $headers['content-disposition'][0], $output_array);
             $decryptedFileName = str_replace('"', '', $output_array[1]);
 
             return [
                 'fileName' => $decryptedFileName,
-                'fileContent' => $fichierResponse->getBody()->getContents(),
+                'fileContent' => $fichierResponse->getContent(),
             ];
         }
 
