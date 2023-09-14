@@ -30,6 +30,12 @@ interface JupiterClientInterface
     public function getMetadaByDoctype(string $doctypeId): ?array;
 
     /**
+     * @param string $doctypeId
+     * @return array
+     */
+    public function getDoctype(string $doctypeId): array;
+
+    /**
      * @param string $username
      * @return array|null
      */
@@ -175,6 +181,12 @@ interface JupiterClientInterface
      * @return array
      */
     public function getDocuments(string $univers, array $metadatas = [], bool $withMedatas = false): array;
+
+    /**
+     * @param string $documentId
+     * @return array
+     */
+    public function getDocument(string $documentId): array;
 
     public function searchDocuments(string $univers, ?\DateTime $dateModificationFrom = null, ?\DateTime $dateModificationTo = null, $withDeleted = false): array;
 

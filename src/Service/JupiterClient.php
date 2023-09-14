@@ -102,6 +102,21 @@ class JupiterClient implements JupiterClientInterface
     }
 
     /**
+     * @param string $doctypeId
+     * @return array
+     */
+    public function getDoctype(string $doctypeId): array
+    {
+        $response = $this->queryWithToken("doctypes/$doctypeId");
+
+        if ($response === null) {
+            throw new NotFoundHttpException("Le doctype " . $doctypeId . " n'existe pas sur jupiter");
+        }
+
+        return $response;
+    }
+
+    /**
      * Récupère les metadatas d'un doctype
      *
      * @param string $doctypeId
@@ -585,6 +600,21 @@ class JupiterClient implements JupiterClientInterface
         }
 
         return $documents;
+    }
+
+    /**
+     * @param string $documentId
+     * @return array
+     */
+    public function getDocument(string $documentId): array
+    {
+        $response = $this->queryWithToken("documents/$documentId");
+
+        if ($response === null) {
+            throw new NotFoundHttpException("Le document " . $documentId . " n'existe pas sur jupiter");
+        }
+
+        return $response;
     }
 
     public function searchDocuments(string $univers, ?\DateTime $dateModificationFrom = null, ?\DateTime $dateModificationTo = null, $withDeleted = false): array
